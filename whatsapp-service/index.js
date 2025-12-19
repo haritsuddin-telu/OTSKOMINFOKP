@@ -1,5 +1,5 @@
 const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcode-terminal');
+// const qrcode = require('qrcode-terminal'); // Removed for web integration
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
@@ -10,6 +10,10 @@ const port = 3001;
 app.use(cors());
 app.use(bodyParser.json());
 
+// State variables
+let qrCode = null;
+let clientStatus = 'INITIALIZING'; // INITIALIZING, WAITING_FOR_QR, READY, AUTHENTICATED
+
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -18,23 +22,71 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-    console.log('QR RECEIVED', qr);
-    qrcode.generate(qr, { small: true });
+    console.log('QR RECEIVED (Exposed via API)');
+    qrCode = qr;
+    clientStatus = 'WAITING_FOR_QR';
+    // qrcode.generate(qr, { small: true }); // Disabled terminal output
 });
 
 client.on('ready', () => {
     console.log('Client is ready!');
+    clientStatus = 'READY';
+    qrCode = null; // Clear QR code when connected
 });
 
 client.on('authenticated', () => {
     console.log('AUTHENTICATED');
+    clientStatus = 'AUTHENTICATED';
+    qrCode = null;
 });
 
 client.on('auth_failure', msg => {
     console.error('AUTHENTICATION FAILURE', msg);
+    clientStatus = 'AUTH_FAILURE';
+});
+
+client.on('disconnected', (reason) => {
+    console.log('Client was disconnected', reason);
+    clientStatus = 'INITIALIZING'; // Explicitly set to initializing
+    client.initialize(); // Auto reconnect/reinit to get new QR
 });
 
 client.initialize();
+
+// New Endpoint: Check Status & Get QR
+app.get('/status', (req, res) => {
+    res.json({
+        status: clientStatus,
+        qr: qrCode
+    });
+});
+
+// New Endpoint: Logout
+// New Endpoint: Logout
+app.post('/logout', async (req, res) => {
+    try {
+        // Attempt graceful logout
+        if (clientStatus === 'AUTHENTICATED' || clientStatus === 'READY') {
+            await client.logout();
+        }
+    } catch (error) {
+        console.error('Graceful logout failed, forcing reset:', error.message);
+    } finally {
+        // Force reset regardless of logout success/failure
+        try {
+            clientStatus = 'INITIALIZING';
+            qrCode = null;
+            await client.destroy();
+            await client.initialize();
+
+            // Allow some time for initialize to start
+            res.json({ status: 'success', message: 'Logged out and service reset' });
+        } catch (resetError) {
+            console.error('Hard reset failed:', resetError);
+            res.status(500).json({ status: 'error', message: 'Critical error during reset' });
+        }
+    }
+});
 
 app.post('/send', async (req, res) => {
     const { number, message } = req.body;

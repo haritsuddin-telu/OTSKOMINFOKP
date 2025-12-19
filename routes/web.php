@@ -116,3 +116,5 @@ Route::fallback(function () {
     }
     abort(404);
 });
+
+Route::get('/whatsapp/connect', [App\Http\Controllers\WhatsAppController::class, 'connect'])->name('whatsapp.connect');

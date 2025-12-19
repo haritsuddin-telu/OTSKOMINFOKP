@@ -22,3 +22,4 @@ yarn-error.log
 
 whatsapp-service/.wwebjs_auth/
 whatsapp-service/node_modules/
+whatsapp-service/.wwebjs_cache/

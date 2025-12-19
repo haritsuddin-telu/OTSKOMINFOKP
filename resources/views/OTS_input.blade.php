@@ -99,6 +99,14 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
             </div>
+            
+            {{-- WhatsApp Status Container --}}
+            <div id="whatsapp-conn-status" class="mt-4 mb-2">
+                {{-- Content filled by JS --}}
+                <div class="animate-pulse flex items-center gap-2 text-sm text-gray-500">
+                    <span class="w-2 h-2 bg-gray-400 rounded-full"></span> Checking WhatsApp connection...
+                </div>
+            </div>
             <div class="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
                 <div class="flex items-center mb-2">
                     <input type="checkbox" id="send_whatsapp" name="send_whatsapp" value="1" class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 dark:focus:ring-green-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600" onclick="toggleWhatsAppInput()">
@@ -119,6 +127,54 @@ document.addEventListener('DOMContentLoaded', function() {
                         container.classList.add('hidden');
                     }
                 }
+
+                // Check WhatsApp Status
+                const waStatusDiv = document.getElementById('whatsapp-conn-status');
+                
+                async function checkWaStatus() {
+                    try {
+                        const response = await fetch('http://localhost:3001/status');
+                        const data = await response.json();
+                        
+                        if (data.status === 'AUTHENTICATED' || data.status === 'READY') {
+                            waStatusDiv.innerHTML = `
+                                <a href="{{ route('whatsapp.connect') }}" class="flex items-center justify-between py-2 px-3 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm border border-green-200 transition group cursor-pointer">
+                                    <div class="flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                        </svg>
+                                        <span class="font-semibold">WhatsApp Terhubung</span>
+                                    </div>
+                                    <span class="text-green-600 group-hover:underline text-xs">Atur &rarr;</span>
+                                </a>
+                            `;
+                        } else {
+                            // Not connected
+                            waStatusDiv.innerHTML = `
+                                <a href="{{ route('whatsapp.connect') }}" class="flex items-center justify-between p-3 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-lg border border-amber-200 transition group mb-2 text-sm">
+                                    <div class="flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                        </svg>
+                                        <span>WhatsApp Belum Terhubung</span>
+                                    </div>
+                                    <span class="font-semibold text-blue-600 group-hover:underline">Hubungkan Sekarang &rarr;</span>
+                                </a>
+                            `;
+                        }
+                    } catch (error) {
+                        console.error('WA Status Error:', error);
+                        waStatusDiv.innerHTML = `
+                             <div class="flex items-center gap-2 py-2 px-3 bg-gray-100 text-gray-500 rounded-lg text-sm border border-gray-200">
+                                <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                                <span>Service WhatsApp Offline</span>
+                            </div>
+                        `;
+                    }
+                }
+
+                // Check on load
+                document.addEventListener('DOMContentLoaded', checkWaStatus);
             </script>
             <button type="submit" class="w-full py-2 px-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg shadow-md transition">Buat Link Rahasia</button>
         </form>

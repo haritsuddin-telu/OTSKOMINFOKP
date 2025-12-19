@@ -63,7 +63,7 @@
                     @if(isset($file_path) && $file_path)
                         <p class="text-gray-600 dark:text-gray-400 mb-4">File Rahasia:</p>
                         <div class="flex flex-col items-center justify-center">
-                            <div class="font-mono text-lg mb-4">{{ $original_name }}</div>
+                            <div class="font-mono text-lg mb-4 break-all px-4 line-clamp-3">{{ $original_name }}</div>
                             <a href="{{ $downloadUrl }}" 
                                class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow transition-all duration-200 flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
