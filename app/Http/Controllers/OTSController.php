@@ -11,8 +11,26 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\URL;
 use Carbon\Carbon;
 
+use Illuminate\Support\Facades\Http;
+
 class OTSController extends Controller
 {
+    /**
+     * Send message via local Node.js WhatsApp service
+     */
+    private function sendWhatsAppMessage($number, $message)
+    {
+        try {
+            $response = Http::post('http://localhost:3001/send', [
+                'number' => $number,
+                'message' => $message,
+            ]);
+            return $response->successful();
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
     /**
      * Grafik jumlah pesan rahasia yang dikirim sesuai batasan waktu.
      */
@@ -42,14 +60,34 @@ class OTSController extends Controller
     public function store(Request $request): \Illuminate\Http\RedirectResponse
     {
         $request->validate([
-            'secret' => 'required|string|max:10000',
+            'secret' => 'nullable|string|max:10000',
+            'file' => 'nullable|file|max:10240', // Max 10MB
             'one_time' => 'required|in:0,1',
             'expiry' => 'required_if:one_time,0|integer|in:5,60,1440',
+            'whatsapp_number' => 'nullable|string|max:20',
         ]);
+
+        if (!$request->input('secret') && !$request->hasFile('file')) {
+            return redirect()->back()->withInput()->with('error', 'Please provide either text or a file.');
+        }
 
         try {
             $isOneTime = $request->input('one_time') == 1;
             $expiresAt = $isOneTime ? null : now()->addMinutes($request->input('expiry'));
+
+            $filePath = null;
+            $originalName = null;
+            $mimeType = null;
+            $fileSize = null;
+
+            if ($request->hasFile('file')) {
+                $file = $request->file('file');
+                $filePath = $file->store('secrets'); // storage/app/private/secrets
+                $originalName = $file->getClientOriginalName();
+                $mimeType = $file->getMimeType();
+                $fileSize = $file->getSize();
+            }
+
             $secret = Secret::create([
                 'text' => $request->input('secret'),
                 'slug' => $this->generateUniqueSlug(),
@@ -57,15 +95,32 @@ class OTSController extends Controller
                 'user_id' => auth()->id(),
                 'used' => false,
                 'one_time' => $isOneTime,
+                'file_path' => $filePath,
+                'original_name' => $originalName,
+                'mime_type' => $mimeType,
+                'file_size' => $fileSize,
             ]);
+
             // Untuk sekali lihat, link tetap valid sangat lama (10 tahun), expired hanya jika sudah dibuka
             $signedUrl = URL::temporarySignedRoute(
                 'ots.show',
                 $isOneTime ? now()->addYears(10) : $expiresAt,
                 ['slug' => $secret->slug]
             );
+
+            // Send via WhatsApp if requested
+            if ($request->has('send_whatsapp') && $request->input('whatsapp_number')) {
+                $message = "Halo, ini link rahasia untuk Anda: " . $signedUrl;
+                $sent = $this->sendWhatsAppMessage($request->input('whatsapp_number'), $message);
+                if ($sent) {
+                    session()->flash('success', 'Link pesan rahasia telah ter-generate dan dikirim via WhatsApp!');
+                } else {
+                    session()->flash('error', 'Link generated, but failed to send via WhatsApp. Please ensure the service is running.');
+                }
+            }
+            
             return redirect()->route('ots.form')->with([
-                'success' => 'Link pesan rahasia telah ter-generate !',
+                'success' => session('success') ?? 'Link pesan rahasia telah ter-generate !',
                 'signedUrl' => $signedUrl
             ]);
         } catch (\Exception $e) {
@@ -89,29 +144,84 @@ class OTSController extends Controller
                 'expired' => true
             ]);
         }
-        // Jika sekali lihat, expired hanya jika sudah dibuka (used==true), abaikan waktu
+        
+        // Logic Expired/Used
         if ($secret->one_time) {
             if ($secret->used) {
                 return view('OTS_display', [ 'expired' => true ]);
             }
-            // Set used=true setelah dibuka
-            $secret->update([
-                'used' => true,
-                'viewed_at' => now()
-            ]);
+            // Jika HANYA text, tandai used saat dibuka. Jika ada file, tandai used saat download.
+            if (!$secret->file_path) {
+                $secret->update([
+                    'used' => true,
+                    'viewed_at' => now()
+                ]);
+            }
         } else {
-            // Jika bukan sekali lihat, expired jika waktu habis
             if ($secret->expires_at && Carbon::parse($secret->expires_at)->isPast()) {
                 return view('OTS_display', [ 'expired' => true ]);
             }
         }
+
         // Pastikan waktu yang dikirim ke view sudah diubah ke Asia/Jakarta
         $expires_at = $secret->expires_at ? Carbon::parse($secret->expires_at)->setTimezone('Asia/Jakarta') : null;
+        
+        // Generate Signed Download URL if file exists
+        $downloadUrl = null;
+        if ($secret->file_path) {
+            // Use same expiration logic as the main link
+            $expiration = $secret->one_time ? now()->addYears(10) : ($secret->expires_at ? Carbon::parse($secret->expires_at) : now()->addMinutes(30));
+            
+            $downloadUrl = URL::temporarySignedRoute(
+                'ots.download',
+                $expiration,
+                ['slug' => $secret->slug]
+            );
+        }
+
         return view('OTS_display', [
             'secret' => $secret->text,
+            'file_path' => $secret->file_path,
+            'original_name' => $secret->original_name,
+            'downloadUrl' => $downloadUrl,
             'expires_at' => $expires_at,
             'one_time' => $secret->one_time,
         ]);
+    }
+
+    public function download(Request $request, string $slug)
+    {
+        if (!$request->hasValidSignature()) {
+            abort(403, 'Invalid signature.');
+        }
+
+        $secret = Secret::where('slug', $slug)->firstOrFail();
+
+        // Check expiration
+        if ($secret->one_time && $secret->used) {
+            abort(410, 'Link expired.');
+        }
+        if (!$secret->one_time && $secret->expires_at && Carbon::parse($secret->expires_at)->isPast()) {
+            abort(410, 'Link expired.');
+        }
+
+        if (!$secret->file_path || !\Illuminate\Support\Facades\Storage::exists($secret->file_path)) {
+            abort(404, 'File not found.');
+        }
+
+        // Mark as used if one-time
+        if ($secret->one_time) {
+            $secret->update([
+                'used' => true,
+                'viewed_at' => now()
+            ]);
+        }
+
+        if (ob_get_length()) {
+            ob_end_clean();
+        }
+
+        return \Illuminate\Support\Facades\Storage::download($secret->file_path, $secret->original_name);
     }
 
     /**

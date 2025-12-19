@@ -19,3 +19,6 @@ yarn-error.log
 /.vscode
 .DS_Store
 .DS_Store
+
+whatsapp-service/.wwebjs_auth/
+whatsapp-service/node_modules/

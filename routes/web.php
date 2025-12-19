@@ -1,4 +1,3 @@
-
 <?php
 
 use Illuminate\Support\Facades\Route;
@@ -57,6 +56,7 @@ Route::middleware(['auth','permission:access ots'])->group(function () {
 
 // Route display (publik, tanpa login, view OTS_display)
 Route::get('/secret/{slug}', [OTSController::class, 'show'])->name('ots.show')->middleware('signed');
+Route::get('/secret/{slug}/download', [OTSController::class, 'download'])->name('ots.download')->middleware('signed');
 Route::get('/secret/{slug}/info', [OTSController::class, 'info'])->name('ots.info');
 
 

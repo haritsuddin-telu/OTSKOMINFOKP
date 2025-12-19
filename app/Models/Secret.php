@@ -55,6 +55,10 @@ class Secret extends Model
         'viewed_at',
         'user_id',
         'one_time',
+        'file_path',
+        'original_name',
+        'mime_type',
+        'file_size',
     ];
 
     protected $casts = [
@@ -67,6 +71,18 @@ class Secret extends Model
     protected $hidden = [
         'text', // Hide secret text by default for security
     ];
+
+    /**
+     * The "booted" method of the model.
+     */
+    protected static function booted(): void
+    {
+        static::deleting(function ($secret) {
+            if ($secret->file_path && \Illuminate\Support\Facades\Storage::exists($secret->file_path)) {
+                \Illuminate\Support\Facades\Storage::delete($secret->file_path);
+            }
+        });
+    }
 
     /**
      * Get the user that owns the secret.

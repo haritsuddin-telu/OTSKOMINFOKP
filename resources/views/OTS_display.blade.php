@@ -20,13 +20,13 @@
                     Link Rahasia ini telah kedaluwarsa atau sudah pernah dilihat.
                 </div>
             </div>
-        @elseif(isset($secret))
+        @elseif(isset($secret) || isset($file_path))
             <div class="mb-6">
                 <div class="bg-gray-50 dark:bg-slate-800 rounded-lg p-4 border text-center shadow-lg transition-all duration-300">
                     <div class="flex justify-center items-center mb-4">
                         <span class="text-4xl animate-bounce">🔒</span>
                     </div>
-                    <p class="text-gray-600 dark:text-gray-400 mb-4">Pesan Rahasia (masked):</p>
+                    
                     @if(isset($one_time))
                         <div class="mb-2">
                             <span class="inline-block px-3 py-1 rounded-full text-xs font-semibold {{ $one_time ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800' }}">
@@ -34,21 +34,48 @@
                             </span>
                         </div>
                     @endif
-                    <div class="flex flex-col items-center justify-center">
-                        <span class="font-mono text-lg tracking-widest select-none" id="maskedSecret">
-                            @php
-                                $maxLength = 20;
-                                $displaySecret = mb_substr($secret, 0, $maxLength);
-                                $masked = mb_substr($displaySecret, 0, 3) . str_repeat('*', max(0, mb_strlen($displaySecret)-3));
-                            @endphp
-                            {{ $masked }}
-                        </span>
-                        <button type="button" onclick="copyMaskedSecret()" id="copyBtn" class="mt-4 bg-green-600 hover:bg-green-700 focus:ring-2 focus:ring-green-400 text-white px-4 py-2 rounded-lg font-semibold shadow transition-all duration-200 flex items-center gap-2">
-                            <svg id="copyIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8M8 12h8m-8-4h8M4 6h16M4 6v12a2 2 0 002 2h12a2 2 0 002-2V6" /></svg>
-                            <span id="copyText">Salin Pesan</span>
-                        </button>
-                    </div>
-                    <div id="copyFeedback" class="mt-2 text-green-600 font-semibold opacity-0 transition-opacity duration-300">Copied to clipboard!</div>
+
+                    {{-- Display Text Secret if exists --}}
+                    @if(isset($secret) && $secret)
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">Pesan Rahasia (masked):</p>
+                        <div class="flex flex-col items-center justify-center mb-6">
+                            <span class="font-mono text-lg tracking-widest select-none" id="maskedSecret">
+                                @php
+                                    $maxLength = 20;
+                                    $displaySecret = mb_substr($secret, 0, $maxLength);
+                                    $masked = mb_substr($displaySecret, 0, 3) . str_repeat('*', max(0, mb_strlen($displaySecret)-3));
+                                @endphp
+                                {{ $masked }}
+                            </span>
+                            <button type="button" onclick="copyMaskedSecret()" id="copyBtn" class="mt-4 bg-green-600 hover:bg-green-700 focus:ring-2 focus:ring-green-400 text-white px-4 py-2 rounded-lg font-semibold shadow transition-all duration-200 flex items-center gap-2">
+                                <svg id="copyIcon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16h8M8 12h8m-8-4h8M4 6h16M4 6v12a2 2 0 002 2h12a2 2 0 002-2V6" /></svg>
+                                <span id="copyText">Salin Pesan</span>
+                            </button>
+                            <div id="copyFeedback" class="mt-2 text-green-600 font-semibold opacity-0 transition-opacity duration-300">Copied to clipboard!</div>
+                        </div>
+                        
+                        @if(isset($file_path) && $file_path)
+                            <hr class="border-gray-300 dark:border-gray-600 my-4">
+                        @endif
+                    @endif
+
+                    {{-- Display File Secret if exists --}}
+                    @if(isset($file_path) && $file_path)
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">File Rahasia:</p>
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="font-mono text-lg mb-4">{{ $original_name }}</div>
+                            <a href="{{ $downloadUrl }}" 
+                               class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold shadow transition-all duration-200 flex items-center gap-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                Download File
+                            </a>
+                            @if($one_time)
+                                <p class="text-xs text-red-500 mt-2">Peringatan: File akan dihapus setelah didownload!</p>
+                            @endif
+                        </div>
+                    @endif
                 </div>
             </div>
             @if(isset($expires_at))
