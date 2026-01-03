@@ -128,7 +128,7 @@
 
         async function checkStatus() {
             try {
-                const response = await fetch('http://localhost:3001/status');
+                const response = await fetch("{{ route('whatsapp.status') }}");
                 const data = await response.json();
                 console.log('Status:', data);
                 updateUI(data.status, data.qr);
@@ -154,7 +154,13 @@
             statusText.innerText = 'Disconnecting...';
 
             try {
-                const response = await fetch('http://localhost:3001/logout', { method: 'POST' });
+                const response = await fetch("{{ route('whatsapp.logout') }}", { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Content-Type': 'application/json'
+                    }
+                });
                 const data = await response.json();
                 if (data.status === 'success') {
                     // UI will update automatically via polling

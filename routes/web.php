@@ -118,3 +118,5 @@ Route::fallback(function () {
 });
 
 Route::get('/whatsapp/connect', [App\Http\Controllers\WhatsAppController::class, 'connect'])->name('whatsapp.connect');
+Route::get('/whatsapp/status', [App\Http\Controllers\WhatsAppController::class, 'getStatus'])->name('whatsapp.status');
+Route::post('/whatsapp/logout', [App\Http\Controllers\WhatsAppController::class, 'logout'])->name('whatsapp.logout');
