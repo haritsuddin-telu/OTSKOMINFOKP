@@ -128,7 +128,7 @@
 
         async function checkStatus() {
             try {
-                const response = await fetch("{{ route('whatsapp.status') }}");
+                const response = await fetch("{{ route('whatsapp.status', [], false) }}");
                 const data = await response.json();
                 console.log('Status:', data);
                 updateUI(data.status, data.qr);
@@ -154,7 +154,7 @@
             statusText.innerText = 'Disconnecting...';
 
             try {
-                const response = await fetch("{{ route('whatsapp.logout') }}", { 
+                const response = await fetch("{{ route('whatsapp.logout', [], false) }}", {  
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
