@@ -110,6 +110,10 @@ Route::middleware(['auth', 'permission:view log'])->group(function () {
 // This ensures users are redirected to login if not authenticated.
 // For extra clarity, add a fallback route for unauthorized access:
 
+Route::get('/whatsapp/connect', [App\Http\Controllers\WhatsAppController::class, 'connect'])->name('whatsapp.connect');
+Route::get('/whatsapp/status', [App\Http\Controllers\WhatsAppController::class, 'getStatus'])->name('whatsapp.status');
+Route::post('/whatsapp/logout', [App\Http\Controllers\WhatsAppController::class, 'logout'])->name('whatsapp.logout');
+
 Route::fallback(function () {
     if (!auth()->check()) {
         return redirect()->route('login');
@@ -117,6 +121,4 @@ Route::fallback(function () {
     abort(404);
 });
 
-Route::get('/whatsapp/connect', [App\Http\Controllers\WhatsAppController::class, 'connect'])->name('whatsapp.connect');
-Route::get('/whatsapp/status', [App\Http\Controllers\WhatsAppController::class, 'getStatus'])->name('whatsapp.status');
-Route::post('/whatsapp/logout', [App\Http\Controllers\WhatsAppController::class, 'logout'])->name('whatsapp.logout');
+
